@@ -5,7 +5,9 @@
 #include "Eigen-3.3/Eigen/Core"
 
 class MPC {
- public:
+  std::vector<double> delayed_steerings;
+  std::vector<double> delayed_accelerations;
+public:
   MPC();
 
   virtual ~MPC();
