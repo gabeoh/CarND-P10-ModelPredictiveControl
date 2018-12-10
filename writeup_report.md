@@ -3,21 +3,21 @@
 ## Objective
 
 The goal of this project is to implement Model Predictive Control (MPC).
-The MPC predicts the vehicle trajectory based on the vehicle kinetic model.
-For a given desired waypoint coordinates, MPC computes series of future
-actuator values (steering wheel turn value and accelerations) while
-optimizing the model cost.
+The MPC predicts the vehicle trajectory based on its kinetic model.
+For given desired waypoint coordinates, MPC computes series of future
+actuator values (steering angle and acceleration) while minimizing the
+model error.
 
 ---
 
 ## MPC Implementation
 
 ### Vehicle Model
-The simulator provides vehicle position (x, y), heading direction (psi),
-and speed.  In addition, it also provides x and y coordinates of series of
-vehicle waypoints.
+The simulator provides the vehicle states; position (x, y), heading
+direction (psi), and speed.
+In addition, it provides x and y coordinates of series of vehicle waypoints.
 
-The state of vehicle is composed of four provided values (x, y, psi, v),
+The model state is composed of four simulator provided values (x, y, psi, v),
 errors, and actuators.  Two types of errors are used in this vehicle 
 kinetic model; the Cross Tracking Error (CTE) and the Orientation Error
 (ePsi).  The steering angle and the acceleration are used as vehicle
@@ -36,7 +36,7 @@ The following factors contribute the model error:
 - Changes in steering angle
 - Changes in acceleration value
 
-Each of these factors over each time step is squared and added to the
+Each of these factors at each time step is squared and added to the
 overall cost.  The cost contribution of each of these factors is normalized
 to make meaningful contributions.
 
@@ -49,10 +49,10 @@ error and the steering angle is smaller than that of the CTE and the
 acceleration values.  Thus, the larger multiplication factors are applied
 to the angular components.
 
-Lastly, through the experiments, it was discovered that the model has a
-strong tendency to optimize the cost by maneuvering the steering wheel
+Lastly, based on the experiments, it was discovered that the model has a
+strong tendency to optimize the cost by maneuvering the steering angle
 rather than the acceleration.  This caused the vehicle to move in a
-wobbly manner.  In real life, it is more common (and safef) to reduce the
+wobbly manner.  In real life, it is more common (and safer) to reduce the
 speed than to perform crazy steering maneuver in order to track sharp turns.
 In order to achieve this, heavy penalties on the steering angle magnitude
 and its differentials, large reductions on the acceleration contributions,
@@ -60,9 +60,11 @@ and further reductions on the speed discrepancies are applied.
  
 ### Preprocessing Vehicle States and Waypoints
 Both vehicle states and waypoints are transformed from the global map
-perspective to the vehicle perspective.  This makes the position of vehicle
-to be the origin (0, 0) with 0 angle.  The speed of the vehicle remains
-identical through the transform.
+perspective to the vehicle perspective prior to be passed to the MPC
+optimizations.
+This makes the position of the vehicle as the origin (0, 0) and the
+vehicle moving direction as the reference angle (psi = 0).
+The speed of the vehicle remains unchanged through the transform.
 
 The waypoint transformation was a bit more complicated.  It was achieved
 by computing the distance between the points and vehicle, and the relative
@@ -88,20 +90,20 @@ the solution in the allocated time slot to run the live simulation.
 The solution of 25 time steps of 50ms is one of many possible solutions.
 Other solutions with potentially better results would be possible by
 carefully tuning other parameters such as `v_ref` and cost multiplication
-factors along with time steps and duration.
+factors along with the time steps and duration.
 
 | Parameter      | Value    | Description   |
 | -------------- |---------:| ------------- |
 | N              |       25 | Time steps    |
 | dt             |    50 ms | Step duration |
-| N_latency      |        2 | Number of steps to cover the latency (100ms) |
+| N_latency      |        2 | Number of steps to cover the 100ms latency |
 | v_ref          |   50 mph | Referential speed value |
 
  
 ### Model Predictive Control with Latency
 The MPC achieves a smooth vehicle control by taking future vehicle
 trajectories into consideration.
-Due to its predictive nature, the MPC also benefits by accommodating
+Due to its predictive nature, the MPC can also benefit by accommodating
 the latency between the control command and its actuation.
 
 In this project, the latency of 100ms is simulated.  The MPC model stores

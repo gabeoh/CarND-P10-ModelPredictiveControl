@@ -1,8 +1,8 @@
 # CarND-P10-ModelPredictiveControl
 
-CarND-P10-ModelPredictiveControl implements Model Predictive Control
-that computes vehicle actuator values that optimizes its
-trajectory based on the vehicle kinetic model.
+CarND-P10-ModelPredictiveControl implements a vehicle controller
+that optimizes path tracking by predicting a vehicle's future trajectory
+based on its kinetic model.
 
 ## File Structure
 ### C++ Source Files - /src
@@ -13,8 +13,8 @@ trajectory based on the vehicle kinetic model.
 - **[MPC.cpp](src/MPC.cpp)** - implements Model Predictive Control.
     For a given vehicle state and the polynomial fit for the waypoints,
     it returns actuator values and predicted trajectories.
-- **[Eigen/](src/Eigen/)** - C++ library for linear algebra, matrix and
-    vector opeartions
+- **[Eigen-3.3/](src/Eigen-3.3/)** - C++ library for linear algebra,
+    matrix, and vector opeartions
 ### Project Report
 - **[writeup_report.md](writeup_report.md)** - a report discussing the
     model implementations.
