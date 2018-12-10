@@ -50,15 +50,35 @@ public:
   typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
   void operator()(ADvector& fg, const ADvector& vars) {
     // Implement MPC
-    // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
+    // `fg` is a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
 
+    //////////////////////////
     // Compute cost
+    //////////////////////////
+    //
+    // The cost contributions are adjusted (normalized) so that each factor has meaningful impacts
+    // on the overall cost.
+    // First, the magnitude of the speed value is much bigger than other factors such as CTE and
+    // angular error (ePsi).  Thus, the cost contributions from the speed discrepancy is heavily
+    // discounted.
+    // Also, the magnitude of angular components such as ePsi and delta is smaller compared to
+    // the CTE and the acceleration values.  Thus, the larger multiplication factors are applied
+    // to the angular components.
+    // Lastly, through the experiments, it was discovered that the model has a strong tendency
+    // to optimize the cost by maneuvering the steering wheel than the acceleration.  This caused
+    // the vehicle to move in the wobbly manner.  In the real life, it is more common (and safe)
+    // to reduce speed than to perform crazy steering maneuver in order to track sharp turns.
+    // In order to achieve this, heavy penalties on the large delta and the delta differentials,
+    // large reduction on the acceleration contributions, and further reduction on the speed
+    // discrepancy are applied.
+    //
+    // Since the variables in the latency steps are not affected by the current actuator values,
+    // they are excluded from the cost computations (ie. skip vars in [0, ..., N_latency) )
     fg[0] = 0.0;
     // Compute cost factors from state
     for (size_t t = N_latency; t < N; ++t) {
       fg[0] += (CppAD::pow(vars[cte_start + t], 2) * 40.0);
       fg[0] += (CppAD::pow(vars[epsi_start + t], 2) * 80.0);
-      // Reduce the cost contribution from the speed discrepancy
       fg[0] += (CppAD::pow(vars[v_start + t] - v_ref, 2) / 400.0);
     }
     // Compute cost factors from actuators - penalize large actuator values
@@ -67,7 +87,10 @@ public:
       fg[0] += (CppAD::pow(vars[a_start + t], 2) / 40.0);
     }
     // Compute cost factors from actuator differentials - smoothen the actuator changes
-    for (size_t t = N_latency - 1; t < N - 2; ++t) {
+    int actuator_diff_start = 0;
+    if (N_latency > 0)
+      actuator_diff_start = N_latency - 1;
+    for (size_t t = actuator_diff_start; t < N - 2; ++t) {
       fg[0] += (CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2) * 400.0);
       fg[0] += (CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2) / 40.0);
     }
@@ -200,7 +223,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[epsi_start] = state[5];
 
   // Set constraints for delta and a during actuation latency
-  cout << "# Delayed Actuators: ";
+  // Actuators (delta and a) for latency steps are already determined and cannot be altered.
   for (i = 0; i < N_latency; ++i) {
     // Set steering values and constraints
     double steering = delayed_steerings[i];
@@ -214,10 +237,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     // Thus, the start of acceleration constraint index is 'delta_start + N_latency' instead of 'a_start'
     constraints_lowerbound[delta_start + N_latency + i] = acceleration;
     constraints_upperbound[delta_start + N_latency + i] = acceleration;
-
-    // cout << "[" << i << "](delta:" << steering << ",a:" << acceleration << "), ";
   }
-  cout << endl;
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
